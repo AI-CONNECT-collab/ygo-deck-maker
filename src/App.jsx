@@ -15,6 +15,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
 const YGOPRODECK_BASE = "https://db.ygoprodeck.com/api/v7/cardinfo.php";
 const YAMLYUGI_CARD_BASE = "https://cdn.jsdelivr.net/gh/DawnbrandBots/yaml-yugi/data/cards/";
 const LIMIT_REGULATION_URL = "https://appmedia.jp/master_duel/27463944";
+const DECK_PROXY_URL = "https://ygo-deck-maker.ai-connect-main.workers.dev/";
 
 const MAIN_MAX = 60;
 const MAIN_RECOMMENDED_MIN = 40;
@@ -207,6 +208,7 @@ export default function App() {
   const [library, setLibrary] = useState([]); // インポート済みデッキの一覧(閲覧専用)
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [importing, setImporting] = useState(false);
+   const [importUrl, setImportUrl] = useState("");
   const [fetchError, setFetchError] = useState(null); // YGOProDeck通信の実エラーを画面表示するため
 
   const [nameIndex, setNameIndex] = useState(null); // 起動時に public/ja-name-index.json から読み込む
@@ -473,6 +475,39 @@ export default function App() {
     e.target.value = "";
   }
 
+   async function importFromDeckUrl(deckUrl) {
+    if (!deckUrl.trim()) return;
+    setImporting(true);
+    try {
+      const res = await fetch(`${DECK_PROXY_URL}?url=${encodeURIComponent(deckUrl.trim())}`);
+      const json = await res.json();
+      if (json.error) {
+        showToast(json.error, "error");
+        setImporting(false);
+        return;
+      }
+      const entry = {
+        key: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        name: json.name || "Imported Deck",
+        main: groupIds(json.main || []),
+        extra: groupIds(json.extra || []),
+        side: groupIds(json.side || []),
+      };
+      setLibrary((prev) => {
+        const next = [...prev, entry];
+        saveLibraryToStorage(next);
+        return next;
+      });
+      showToast(`「${entry.name}」を取り込みました`);
+      setImportUrl("");
+    } catch (e) {
+      showToast(`取り込みに失敗しました(${e.message})`, "error");
+    }
+    setImporting(false);
+  }
+
+</parameter>
+   
   function removeFromLibrary(key) {
     setLibrary((prev) => {
       const next = prev.filter((d) => d.key !== key);
@@ -655,6 +690,23 @@ export default function App() {
           ライブラリ {library.length > 0 ? `(${library.length})` : ""}
         </button>
       </div>
+       
+       <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs">
+        <input
+          value={importUrl}
+          onChange={(e) => setImportUrl(e.target.value)}
+          placeholder="YGOProDeckのデッキURLを貼り付け(https://ygoprodeck.com/deck/...)"
+          className="flex-1 border border-gray-300 rounded px-2 py-1"
+        />
+        <button
+          onClick={() => importFromDeckUrl(importUrl)}
+          disabled={importing || !importUrl.trim()}
+          className="px-3 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
+        >
+          {importing ? "取込中..." : "URLから取込"}
+        </button>
+      </div>
+       
 
       {/* ---------- デッキグリッド ---------- */}
       <main className="flex-1 overflow-y-auto p-3 pb-40">
