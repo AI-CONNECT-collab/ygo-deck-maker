@@ -316,7 +316,7 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardCache]);
 
-  /* ---- 検索 (ローカル日本語インデックス -> YGOProDeckでID解決) ---- */
+/* ---- 検索 (ローカル日本語インデックス -> YGOProDeckでID解決) ---- */
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query || query.trim().length < 1) {
@@ -325,12 +325,6 @@ export default function App() {
     }
     debounceRef.current = setTimeout(async () => {
       setSearching(true);
-      const raw = query.trim();
-      const q = raw.toLowerCase();
-      const qKata = toKatakana(raw); // ひらがな入力をカタカナに正規化して読みと比較
-      let ids = [];
-
-      if (nameIndex) {
       const raw = query.trim();
       const rawNoDot = raw.replace(/[・･]/g, "");
       const q = raw.toLowerCase();
@@ -351,7 +345,6 @@ export default function App() {
         }
       }
 
-      // インデックスが無い/ヒットしない場合は YGOProDeck のfnameで直接検索(英語名向け)
       if (ids.length === 0) {
         try {
           const res = await fetch(`${YGOPRODECK_BASE}?fname=${encodeURIComponent(query.trim())}&num=40&offset=0`);
