@@ -329,10 +329,19 @@ export default function App() {
       let ids = [];
 
       if (nameIndex) {
+      const raw = query.trim();
+      const rawNoDot = raw.replace(/[・･]/g, "");
+      const q = raw.toLowerCase();
+      const qKata = toKatakana(raw).replace(/[・･]/g, "");
+      let ids = [];
+
+      if (nameIndex) {
         for (const [id, info] of nameIndex.entries()) {
+          const jaNoDot = info.ja ? info.ja.replace(/[・･]/g, "") : "";
+          const readingNoDot = info.readingKata ? info.readingKata.replace(/[・･]/g, "") : "";
           const hit =
-            (info.ja && info.ja.includes(raw)) ||
-            (info.readingKata && qKata.length >= 2 && info.readingKata.includes(qKata)) ||
+            (info.ja && (info.ja.includes(raw) || jaNoDot.includes(rawNoDot))) ||
+            (info.readingKata && qKata.length >= 2 && readingNoDot.includes(qKata)) ||
             (info.romaji && info.romaji.toLowerCase().includes(q)) ||
             (info.en && info.en.toLowerCase().includes(q));
           if (hit) ids.push(id);
