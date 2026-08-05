@@ -499,7 +499,6 @@ export default function App() {
     setImporting(false);
   }
 
-</parameter>
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
