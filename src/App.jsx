@@ -241,6 +241,7 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [customFormat, setCustomFormat] = useState("");
+  const [sortMode, setSortMode] = useState("");
   const [simOpen, setSimOpen] = useState(false);
   const [starterIds, setStarterIds] = useState(new Set());
   const [handSize, setHandSize] = useState(5);
@@ -948,17 +949,33 @@ export default function App() {
             下の検索欄からカードを追加してください
           </div>
         ) : (
-          <div className="grid grid-cols-10 sm:grid-cols-15 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
-            {deck[activeZone].map((entry) => (
-              <CardThumb
-                key={entry.id}
-                card={cardCache[entry.id]}
-                jaName={nameIndex?.get(entry.id)?.ja}
-                qty={entry.qty}
-                onClick={() => setSelectedCardId(entry.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="flex justify-end mb-2">
+              <select
+                value={sortMode}
+                onChange={(e) => setSortMode(e.target.value)}
+                className="text-xs border border-gray-300 rounded px-2 py-1"
+              >
+                <option value="">並び替え: 追加順</option>
+                <option value="name">名前順</option>
+                <option value="atk">攻撃力順</option>
+                <option value="def">守備力順</option>
+                <option value="type">種類順</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 xl:grid-cols-12 gap-2">
+              {sortEntries(deck[activeZone], cardCache, sortMode).map((entry) => (
+                <CardThumb
+                  key={entry.id}
+                  card={cardCache[entry.id]}
+                  jaName={nameIndex?.get(entry.id)?.ja}
+                  qty={entry.qty}
+                  onClick={() => setSelectedCardId(entry.id)}
+                  onRightClick={() => setQty(activeZone, entry.id, 0)}
+                />
+              ))}
+            </div>
+          </>
         )}
       </main>
 
@@ -1082,6 +1099,39 @@ export default function App() {
 }
 
 /* ----------------------------- CardThumb --------------------------------- */
+function getMatchingIds(query, nameIndex, limit = 8) {
+  const raw = query.trim();
+  if (!raw || !nameIndex) return [];
+  const q = raw.toLowerCase();
+  const qKata = toKatakana(raw).replace(/[・･]/g, "");
+  const rawNoDot = raw.replace(/[・･]/g, "");
+  const ids = [];
+  for (const [id, info] of nameIndex.entries()) {
+    const jaNoDot = info.ja ? info.ja.replace(/[・･]/g, "") : "";
+    const readingNoDot = info.readingKata ? info.readingKata.replace(/[・･]/g, "") : "";
+    const hit =
+      (info.ja && (info.ja.includes(raw) || jaNoDot.includes(rawNoDot))) ||
+      (info.readingKata && qKata.length >= 2 && readingNoDot.includes(qKata)) ||
+      (info.en && info.en.toLowerCase().includes(q));
+    if (hit) ids.push(id);
+    if (ids.length >= limit) break;
+  }
+  return ids;
+}
+
+function sortEntries(entries, cardCache, mode) {
+  const list = [...entries];
+  if (mode === "name") {
+    list.sort((a, b) => (cardCache[a.id]?.name || "").localeCompare(cardCache[b.id]?.name || ""));
+  } else if (mode === "atk") {
+    list.sort((a, b) => (cardCache[b.id]?.atk ?? -1) - (cardCache[a.id]?.atk ?? -1));
+  } else if (mode === "def") {
+    list.sort((a, b) => (cardCache[b.id]?.def ?? -1) - (cardCache[a.id]?.def ?? -1));
+  } else if (mode === "type") {
+    list.sort((a, b) => (cardCache[a.id]?.type || "").localeCompare(cardCache[b.id]?.type || ""));
+  }
+  return list;
+}
 
 function typeColor(type) {
   if (!type) return "bg-gray-400";
@@ -1090,12 +1140,20 @@ function typeColor(type) {
   return "bg-orange-500";
 }
 
-function CardThumb({ card, jaName, qty, onClick, small }) {
+function CardThumb({ card, jaName, qty, onClick, small, onRightClick }) {
   if (!card) {
     return <div className="bg-gray-200 rounded animate-pulse" style={{ paddingBottom: "146%" }} />;
   }
   return (
-    <button onClick={onClick} className="relative block w-full text-left">
+    <button
+      onClick={onClick}
+      onContextMenu={(e) => {
+        if (!onRightClick) return;
+        e.preventDefault();
+        onRightClick();
+      }}
+      className="relative block w-full text-left"
+    >
       <div className={`h-1 rounded-t ${typeColor(card.type)}`} />
       <img
         src={card.card_images?.[0]?.image_url_small}
@@ -1201,10 +1259,12 @@ function CardThumb({ card, jaName, qty, onClick, small }) {
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
     >
       <div
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-y-auto"
         style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
           <div className="font-bold">{jaName}</div>
@@ -1381,8 +1441,24 @@ function QtyRow({ label, value, onChange, max }) {
    閲覧専用パネル。プレビュー中に必要なカードデータだけ遅延取得する。
    -------------------------------------------------------------------------- */
 
-function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDeck, onRemove, onClose, onDownloadAll }) {  const [previewKey, setPreviewKey] = useState(null);
-  const previewEntry = library.find((d) => d.key === previewKey) || null;
+function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDeck, onRemove, onClose, onDownloadAll }) {  
+const [libQuery, setLibQuery] = useState("");
+  const matchIds = useMemo(() => getMatchingIds(libQuery, nameIndex), [libQuery, nameIndex]);
+  const visibleLibrary =
+    libQuery.trim() && matchIds.length > 0
+      ? library.filter((d) =>
+          matchIds.some(
+            (id) =>
+              d.main.some((c) => c.id === id) ||
+              d.extra.some((c) => c.id === id) ||
+              d.side.some((c) => c.id === id)
+          )
+        )
+      : libQuery.trim()
+      ? []
+      : library;
+const [previewKey, setPreviewKey] = useState(null);
+const previewEntry = library.find((d) => d.key === previewKey) || null;
 
   useEffect(() => {
     if (!previewEntry) return;
@@ -1426,13 +1502,22 @@ function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDe
 
         {!previewEntry && (
           <div className="p-4">
+            <input
+              value={libQuery}
+              onChange={(e) => setLibQuery(e.target.value)}
+              placeholder="カード名でデッキを絞り込み"
+              className="w-full border border-gray-300 rounded px-2 py-1.5 text-sm mb-3"
+            />
+            {libQuery.trim() && (
+              <div className="text-xs text-gray-400 mb-2">{visibleLibrary.length}件ヒット</div>
+            )}
             {library.length === 0 ? (
               <div className="text-center text-gray-400 text-sm py-10">
                 まだデッキが取り込まれていません。「YDKを取込」からファイルを選択してください。
               </div>
             ) : (
               <div className="space-y-2">
-                {library.map((d) => (
+                {visibleLibrary.map((d) => (
                   <div key={d.key} className="border rounded-lg p-3 flex items-center justify-between">
                     <button className="text-left flex-1" onClick={() => setPreviewKey(d.key)}>
                       <div className="text-sm font-semibold truncate">{d.name}</div>
