@@ -242,6 +242,7 @@ export default function App() {
   const [importUrl, setImportUrl] = useState("");
   const [customFormat, setCustomFormat] = useState("");
   const [sortMode, setSortMode] = useState("");
+　const [history, setHistory] = useState([]);
   const [simOpen, setSimOpen] = useState(false);
   const [starterIds, setStarterIds] = useState(new Set());
   const [handSize, setHandSize] = useState(5);
@@ -428,6 +429,13 @@ export default function App() {
     return info ? limitToMax(info.limitOcg) : 3;
   }
 
+　function setQty(zone, id, newQty) {
+    setHistory((prev) => {
+      const next = [...prev, deck];
+      return next.length > 5 ? next.slice(next.length - 5) : next;
+    });
+    setDeck((prev) => {
+       
   function setQty(zone, id, newQty) {
     setDeck((prev) => {
       const zoneMax = ZONES.find((z) => z.key === zone).max;
@@ -475,6 +483,14 @@ export default function App() {
     showToast(ok ? "デッキを保存しました" : "保存に失敗しました", ok ? "info" : "error");
   }
 
+  function undoLastChange() {
+    setHistory((prev) => {
+      if (prev.length === 0) return prev;
+      setDeck(prev[prev.length - 1]);
+      return prev.slice(0, -1);
+    });
+  }
+       
   function handleClearAll() {
     if (!window.confirm("デッキを全て削除します。よろしいですか?")) return;
     setDeck({ main: [], extra: [], side: [] });
@@ -819,6 +835,13 @@ export default function App() {
           >
             初動チェック
           </button>
+         <button
+            onClick={undoLastChange}
+            disabled={history.length === 0}
+            className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-sm disabled:opacity-40"
+          >
+            元に戻す{history.length > 0 ? `(${history.length})` : ""}
+          </button>
         </div>
       </header>
 
@@ -971,7 +994,7 @@ export default function App() {
                   jaName={nameIndex?.get(entry.id)?.ja}
                   qty={entry.qty}
                   onClick={() => setSelectedCardId(entry.id)}
-                  onRightClick={() => setQty(activeZone, entry.id, 0)}
+                  onRightClick={() => setQty(activeZone, entry.id, entry.qty - 1)}
                 />
               ))}
             </div>
@@ -1476,10 +1499,12 @@ const previewEntry = library.find((d) => d.key === previewKey) || null;
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
     >
       <div
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg overflow-y-auto"
         style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
           <div className="font-bold">
@@ -1617,10 +1642,12 @@ function SimulatorPanel({
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
       style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
     >
       <div
         className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl overflow-y-auto"
         style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
       >
         <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
           <div className="font-bold">初動シミュレーター</div>
