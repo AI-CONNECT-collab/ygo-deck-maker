@@ -499,6 +499,36 @@ export default function App() {
     setImporting(false);
   }
 
+   async function bulkImportDecks(urls) {
+    if (!urls.length) return;
+    setImporting(true);
+    const newEntries = [];
+    for (const deckUrl of urls) {
+      try {
+        const res = await fetch(`${DECK_PROXY_URL}?url=${encodeURIComponent(deckUrl)}`);
+        const json = await res.json();
+        if (json.error) continue;
+        newEntries.push({
+          key: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          name: json.name || "Imported Deck",
+          main: groupIds(json.main || []),
+          extra: groupIds(json.extra || []),
+          side: groupIds(json.side || []),
+        });
+      } catch {
+        /* このデッキだけスキップ */
+      }
+    }
+    if (newEntries.length) {
+      setLibrary((prev) => {
+        const next = [...prev, ...newEntries];
+        saveLibraryToStorage(next);
+        return next;
+      });
+    }
+    showToast(`${newEntries.length}/${urls.length}件のデッキを取り込みました`);
+    setImporting(false);
+  }
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
@@ -760,6 +790,7 @@ export default function App() {
           getQty={getQty}
           setQty={(zone, q) => setQty(zone, selectedCardId, q)}
           maxAllowed={maxAllowed(selectedCardId)}
+          onBulkImportDecks={bulkImportDecks}
           onClose={() => setSelectedCardId(null)}
         />
       )}
@@ -871,6 +902,35 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
 
   const searchName = encodeURIComponent(card.name);
 
+   const [relatedDecks, setRelatedDecks] = useState(null);
+
+  async function searchRelatedDecks() {
+    if (!card.archetype) return;
+    setRelatedDecks({ loading: true, decks: [], selected: new Set() });
+    try {
+      const res = await fetch(`${DECK_PROXY_URL}?archetype=${encodeURIComponent(card.archetype)}`);
+      const data = await res.json();
+      setRelatedDecks({ loading: false, decks: data.decks || [], selected: new Set() });
+    } catch (e) {
+      setRelatedDecks({ loading: false, decks: [], selected: new Set() });
+    }
+  }
+
+  function toggleDeck(url) {
+    setRelatedDecks((prev) => {
+      const next = new Set(prev.selected);
+      next.has(url) ? next.delete(url) : next.add(url);
+      return { ...prev, selected: next };
+    });
+  }
+
+  function toggleAllDecks() {
+    setRelatedDecks((prev) => {
+      const allSelected = prev.selected.size === prev.decks.length;
+      return { ...prev, selected: allSelected ? new Set() : new Set(prev.decks.map((d) => d.url)) };
+    });
+  }
+
   return (
     <div
       className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
@@ -918,6 +978,56 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
           <div className="text-xs text-gray-400">このカードの上限: デッキ全体で{maxAllowed}枚</div>
         </div>
 
+         <div className="px-4 pb-4 border-t pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-sm font-semibold">
+              関連デッキ{card.archetype ? `(${card.archetype})` : ""}
+            </div>
+            {card.archetype && !relatedDecks && (
+              <button onClick={searchRelatedDecks} className="text-xs px-2 py-1 rounded bg-teal-600 text-white">
+                検索する
+              </button>
+            )}
+          </div>
+          {!card.archetype && (
+            <div className="text-xs text-gray-400">このカードはテーマ情報を持っていないため検索できません</div>
+          )}
+          {relatedDecks?.loading && <div className="text-xs text-gray-400">検索中...</div>}
+          {relatedDecks && !relatedDecks.loading && relatedDecks.decks.length === 0 && (
+            <div className="text-xs text-gray-400">関連デッキが見つかりませんでした</div>
+          )}
+          {relatedDecks && relatedDecks.decks.length > 0 && (
+            <>
+              <div className="flex justify-between items-center mb-2">
+                <button onClick={toggleAllDecks} className="text-xs underline text-teal-700">
+                  {relatedDecks.selected.size === relatedDecks.decks.length ? "すべて解除" : "すべて選択"}
+                </button>
+                <button
+                  disabled={relatedDecks.selected.size === 0}
+                  onClick={() => onBulkImportDecks([...relatedDecks.selected])}
+                  className="text-xs px-2 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
+                >
+                  選択したデッキを取り込む({relatedDecks.selected.size})
+                </button>
+              </div>
+              <div className="max-h-48 overflow-y-auto space-y-1">
+                {relatedDecks.decks.map((d) => (
+                  <label key={d.url} className="flex items-center gap-2 text-xs py-1 border-b">
+                    <input
+                      type="checkbox"
+                      checked={relatedDecks.selected.has(d.url)}
+                      onChange={() => toggleDeck(d.url)}
+                    />
+                    <span className="flex-1 truncate">{d.name}</span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+
+</parameter>
+       
         <div className="px-4 pb-6 grid grid-cols-2 gap-2 text-xs">
           <a
             className="border rounded py-2 text-center hover:bg-gray-50"
