@@ -267,148 +267,7 @@ export default function App() {
       }
     })();
 
-     /* --------------------------------------------------------------------------
-   SimulatorPanel
-   初手ドローシミュレーター + 初動チェック(超幾何分布)
-   -------------------------------------------------------------------------- */
 
-function SimulatorPanel({
-  deckMain,
-  cardCache,
-  nameIndex,
-  starterIds,
-  toggleStarter,
-  handSize,
-  setHandSize,
-  shuffledPool,
-  drawnCount,
-  onRedraw,
-  onDrawOne,
-  onClose,
-}) {
-  const hand = shuffledPool.slice(0, drawnCount);
-  const mainTotal = deckMain.reduce((s, c) => s + c.qty, 0);
-  const starterTotal = deckMain
-    .filter((c) => starterIds.has(c.id))
-    .reduce((s, c) => s + c.qty, 0);
-  const stats = hypergeometricStats(mainTotal, starterTotal, handSize);
-
-  return (
-    <div
-      className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
-      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-    >
-      <div
-        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl overflow-y-auto"
-        style={{ maxHeight: "90vh" }}
-      >
-        <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
-          <div className="font-bold">初動シミュレーター</div>
-          <button onClick={onClose} className="text-gray-400 text-xl leading-none px-2">
-            ×
-          </button>
-        </div>
-
-        {mainTotal === 0 ? (
-          <div className="p-6 text-sm text-gray-400 text-center">メインデッキにカードがありません</div>
-        ) : (
-          <>
-            <div className="p-4 border-b">
-              <div className="flex justify-between items-center mb-2">
-                <div className="text-sm font-semibold">初手ドロー</div>
-                <div className="flex gap-2">
-                  <button onClick={onRedraw} className="text-xs px-2 py-1 rounded border border-gray-300">
-                    再読み込み
-                  </button>
-                  <button
-                    onClick={onDrawOne}
-                    disabled={drawnCount >= shuffledPool.length}
-                    className="text-xs px-2 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
-                  >
-                    追加ドロー
-                  </button>
-                </div>
-              </div>
-              {hand.length === 0 ? (
-                <div className="text-xs text-gray-400">「再読み込み」を押して引いてみてください</div>
-              ) : (
-                <div className="grid grid-cols-5 gap-1.5">
-                  {hand.map((id, i) => (
-                    <CardThumb
-                      key={i}
-                      card={cardCache[id]}
-                      jaName={nameIndex?.get(id)?.ja}
-                      qty={0}
-                      small
-                      onClick={() => {}}
-                    />
-                  ))}
-                </div>
-              )}
-              <div className="text-xs text-gray-400 mt-1">ドロー({hand.length}枚)</div>
-            </div>
-
-            <div className="p-4">
-              <div className="text-sm font-semibold mb-2">初動に設定するカードを選択(タップで切替)</div>
-              <div
-                className="grid grid-cols-5 gap-1.5 mb-4 overflow-y-auto"
-                style={{ maxHeight: "16rem" }}
-              >
-                {deckMain.map((c) => (
-                  <div key={c.id} className="relative">
-                    <CardThumb
-                      card={cardCache[c.id]}
-                      jaName={nameIndex?.get(c.id)?.ja}
-                      qty={c.qty}
-                      small
-                      onClick={() => toggleStarter(c.id)}
-                    />
-                    {starterIds.has(c.id) && (
-                      <div className="absolute inset-0 border-4 border-teal-500 rounded pointer-events-none" />
-                    )}
-                  </div>
-                ))}
-              </div>
-
-              <div className="border-t pt-3">
-                <div className="text-sm font-semibold mb-2">初動チェック結果</div>
-                <div className="flex justify-between text-sm mb-1">
-                  <span>引ける平均枚数</span>
-                  <span className="font-bold">{stats.avg.toFixed(2)} 枚</span>
-                </div>
-                <div className="flex justify-between text-sm mb-3">
-                  <span>1枚以上引ける確率</span>
-                  <span className="font-bold">{(stats.probAtLeastOne * 100).toFixed(1)} %</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span>手札枚数</span>
-                  <div className="flex items-center gap-3">
-                    <button
-                      onClick={() => setHandSize(Math.max(1, handSize - 1))}
-                      className="w-7 h-7 rounded-full bg-gray-100"
-                    >
-                      −
-                    </button>
-                    <span className="w-6 text-center font-semibold">{handSize}</span>
-                    <button
-                      onClick={() => setHandSize(Math.min(mainTotal, handSize + 1))}
-                      className="w-7 h-7 rounded-full bg-gray-100"
-                    >
-                      +
-                    </button>
-                  </div>
-                </div>
-                <div className="text-xs text-gray-400 mt-2">
-                  選択中: {deckMain.filter((c) => starterIds.has(c.id)).length}種類 / 計{starterTotal}枚
-                </div>
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-}
      
     (async () => {
       const saved = await loadDeckFromStorage();
@@ -1564,6 +1423,149 @@ function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDe
                 )
             )}
           </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+     /* --------------------------------------------------------------------------
+   SimulatorPanel
+   初手ドローシミュレーター + 初動チェック(超幾何分布)
+   -------------------------------------------------------------------------- */
+
+function SimulatorPanel({
+  deckMain,
+  cardCache,
+  nameIndex,
+  starterIds,
+  toggleStarter,
+  handSize,
+  setHandSize,
+  shuffledPool,
+  drawnCount,
+  onRedraw,
+  onDrawOne,
+  onClose,
+}) {
+  const hand = shuffledPool.slice(0, drawnCount);
+  const mainTotal = deckMain.reduce((s, c) => s + c.qty, 0);
+  const starterTotal = deckMain
+    .filter((c) => starterIds.has(c.id))
+    .reduce((s, c) => s + c.qty, 0);
+  const stats = hypergeometricStats(mainTotal, starterTotal, handSize);
+
+  return (
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl overflow-y-auto"
+        style={{ maxHeight: "90vh" }}
+      >
+        <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
+          <div className="font-bold">初動シミュレーター</div>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none px-2">
+            ×
+          </button>
+        </div>
+
+        {mainTotal === 0 ? (
+          <div className="p-6 text-sm text-gray-400 text-center">メインデッキにカードがありません</div>
+        ) : (
+          <>
+            <div className="p-4 border-b">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-sm font-semibold">初手ドロー</div>
+                <div className="flex gap-2">
+                  <button onClick={onRedraw} className="text-xs px-2 py-1 rounded border border-gray-300">
+                    再読み込み
+                  </button>
+                  <button
+                    onClick={onDrawOne}
+                    disabled={drawnCount >= shuffledPool.length}
+                    className="text-xs px-2 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
+                  >
+                    追加ドロー
+                  </button>
+                </div>
+              </div>
+              {hand.length === 0 ? (
+                <div className="text-xs text-gray-400">「再読み込み」を押して引いてみてください</div>
+              ) : (
+                <div className="grid grid-cols-5 gap-1.5">
+                  {hand.map((id, i) => (
+                    <CardThumb
+                      key={i}
+                      card={cardCache[id]}
+                      jaName={nameIndex?.get(id)?.ja}
+                      qty={0}
+                      small
+                      onClick={() => {}}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="text-xs text-gray-400 mt-1">ドロー({hand.length}枚)</div>
+            </div>
+
+            <div className="p-4">
+              <div className="text-sm font-semibold mb-2">初動に設定するカードを選択(タップで切替)</div>
+              <div
+                className="grid grid-cols-5 gap-1.5 mb-4 overflow-y-auto"
+                style={{ maxHeight: "16rem" }}
+              >
+                {deckMain.map((c) => (
+                  <div key={c.id} className="relative">
+                    <CardThumb
+                      card={cardCache[c.id]}
+                      jaName={nameIndex?.get(c.id)?.ja}
+                      qty={c.qty}
+                      small
+                      onClick={() => toggleStarter(c.id)}
+                    />
+                    {starterIds.has(c.id) && (
+                      <div className="absolute inset-0 border-4 border-teal-500 rounded pointer-events-none" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-3">
+                <div className="text-sm font-semibold mb-2">初動チェック結果</div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>引ける平均枚数</span>
+                  <span className="font-bold">{stats.avg.toFixed(2)} 枚</span>
+                </div>
+                <div className="flex justify-between text-sm mb-3">
+                  <span>1枚以上引ける確率</span>
+                  <span className="font-bold">{(stats.probAtLeastOne * 100).toFixed(1)} %</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>手札枚数</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setHandSize(Math.max(1, handSize - 1))}
+                      className="w-7 h-7 rounded-full bg-gray-100"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center font-semibold">{handSize}</span>
+                    <button
+                      onClick={() => setHandSize(Math.min(mainTotal, handSize + 1))}
+                      className="w-7 h-7 rounded-full bg-gray-100"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  選択中: {deckMain.filter((c) => starterIds.has(c.id)).length}種類 / 計{starterTotal}枚
+                </div>
+              </div>
+            </div>
+          </>
         )}
       </div>
     </div>
