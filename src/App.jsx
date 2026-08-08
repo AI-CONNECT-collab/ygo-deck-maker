@@ -1025,9 +1025,7 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
             </>
           )}
         </div>
-
-</parameter>
-       
+     
         <div className="px-4 pb-6 grid grid-cols-2 gap-2 text-xs">
           <a
             className="border rounded py-2 text-center hover:bg-gray-50"
