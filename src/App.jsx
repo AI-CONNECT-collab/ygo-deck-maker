@@ -1111,28 +1111,6 @@ function CardThumb({ card, jaName, qty, onClick, small }) {
 /* --------------------------- CardDetailModal ------------------------------ */
 
 function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks, onCacheCards, onSelectCard }) {
-   if (!card) {
-    return (
-      <div
-        className="fixed inset-0 flex items-center justify-center z-40"
-        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
-      >
-        <div className="bg-white rounded-lg p-6 text-sm text-gray-500">読み込み中...</div>
-      </div>
-    );
-  }
-  const jaName = info?.ja || card.name;
-  // jaText: undefined=取得中 / null=見つからず英語で代替 / string=日本語テキスト
-  const displayText = jaText === undefined ? "読み込み中..." : jaText || card.desc;
-  const badge = info ? limitLabel(info.limitOcg) : null;
-  const zone = isExtraDeckType(card.type) ? "extra" : "main";
-
-  const mainQty = getQty("main", card.id);
-  const extraQty = getQty("extra", card.id);
-  const sideQty = getQty("side", card.id);
-
-  const searchName = encodeURIComponent(card.name);
-
   const [relatedDecks, setRelatedDecks] = useState(null);
   const [relatedCards, setRelatedCards] = useState(null);
 
@@ -1154,6 +1132,27 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
       }
     })();
   }, [card?.id]);
+   if (!card) {
+    return (
+      <div
+        className="fixed inset-0 flex items-center justify-center z-40"
+        style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      >
+        <div className="bg-white rounded-lg p-6 text-sm text-gray-500">読み込み中...</div>
+      </div>
+    );
+  }
+  const jaName = info?.ja || card.name;
+  // jaText: undefined=取得中 / null=見つからず英語で代替 / string=日本語テキスト
+  const displayText = jaText === undefined ? "読み込み中..." : jaText || card.desc;
+  const badge = info ? limitLabel(info.limitOcg) : null;
+  const zone = isExtraDeckType(card.type) ? "extra" : "main";
+
+  const mainQty = getQty("main", card.id);
+  const extraQty = getQty("extra", card.id);
+  const sideQty = getQty("side", card.id);
+
+  const searchName = encodeURIComponent(card.name);
 
   async function searchRelatedDecks() {
     if (!card.archetype) return;
