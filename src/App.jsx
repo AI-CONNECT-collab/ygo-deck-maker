@@ -825,7 +825,6 @@ function SimulatorPanel({
     setDrawnCount((d) => d + 1);
   }
 
-</parameter>
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
