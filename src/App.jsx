@@ -751,6 +751,24 @@ export default function App() {
           ライブラリ {library.length > 0 ? `(${library.length})` : ""}
         </button>
       </div>
+
+       <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs flex-wrap">
+        <span className="text-gray-400 self-center">カテゴリを一括取得:</span>
+        <button
+          onClick={() => browseCategory("Tournament Meta Decks OCG")}
+          disabled={importing}
+          className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+        >
+          OCGメタデッキ
+        </button>
+        <button
+          onClick={() => browseCategory("Master Duel Decks")}
+          disabled={importing}
+          className="px-2.5 py-1 rounded border border-gray-300 hover:bg-gray-50 disabled:opacity-50"
+        >
+          マスターデュエルデッキ
+        </button>
+      </div>
        
        <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs">
         <input
