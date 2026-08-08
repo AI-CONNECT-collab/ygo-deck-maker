@@ -1083,27 +1083,42 @@ export default function App() {
 
 /* ----------------------------- CardThumb --------------------------------- */
 
+function typeColor(type) {
+  if (!type) return "bg-gray-400";
+  if (/spell/i.test(type)) return "bg-green-600";
+  if (/trap/i.test(type)) return "bg-pink-600";
+  return "bg-orange-500";
+}
+
 function CardThumb({ card, jaName, qty, onClick, small }) {
   if (!card) {
     return <div className="bg-gray-200 rounded animate-pulse" style={{ paddingBottom: "146%" }} />;
   }
   return (
     <button onClick={onClick} className="relative block w-full text-left">
+      <div className={`h-1 rounded-t ${typeColor(card.type)}`} />
       <img
         src={card.card_images?.[0]?.image_url_small}
         alt={jaName || card.name}
-        className="w-full rounded shadow-sm border border-gray-200"
+        className="w-full border-x border-b border-gray-200 shadow-sm"
       />
       {qty > 0 && (
         <span
-          className="absolute top-0.5 right-0.5 bg-teal-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center shadow"
+          className="absolute top-1 right-0.5 bg-teal-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center shadow"
           style={{ fontSize: "10px" }}
         >
           {qty}
         </span>
       )}
       {!small && (
-        <div className="text-xs text-gray-600 truncate mt-0.5">{jaName || card.name}</div>
+        <>
+          <div className="text-xs text-gray-600 truncate mt-0.5">{jaName || card.name}</div>
+          {typeof card.atk === "number" && (
+            <div className="text-xs text-gray-400">
+              ATK{card.atk}/DEF{card.def ?? "-"}
+            </div>
+          )}
+        </>
       )}
     </button>
   );
