@@ -823,12 +823,32 @@ export default function App() {
       </div>
 
        <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs">
-        <input
+        <select
           value={customFormat}
           onChange={(e) => setCustomFormat(e.target.value)}
-          placeholder="フォーマット名を入力(例: Tournament Meta Decks OCG)"
           className="flex-1 border border-gray-300 rounded px-2 py-1"
-        />
+        >
+          <option value="">カテゴリを選択...</option>
+          <option value="Tournament Meta Decks">Tournament Meta Decks</option>
+          <option value="Tournament Meta Decks OCG">Tournament Meta Decks OCG</option>
+          <option value="Tournament Meta Decks (Genesys)">Tournament Meta Decks (Genesys)</option>
+          <option value="Tournament Meta Decks Worlds">Tournament Meta Decks Worlds</option>
+          <option value="Tournament Meta Decks OCG (Asian-English)">Tournament Meta Decks OCG (Asian-English)</option>
+          <option value="Meta Decks">Meta Decks</option>
+          <option value="World Championship Decks">World Championship Decks</option>
+          <option value="Non-Meta Decks">Non-Meta Decks</option>
+          <option value="Anime Decks">Anime Decks</option>
+          <option value="Fun/Casual Decks">Fun/Casual Decks</option>
+          <option value="Theorycrafting Decks">Theorycrafting Decks</option>
+          <option value="Master Duel Decks">Master Duel Decks</option>
+          <option value="Common Charity Decks">Common Charity Decks</option>
+          <option value="Domain Format Decks">Domain Format Decks</option>
+          <option value="Edison Format">Edison Format</option>
+          <option value="Goat Format">Goat Format</option>
+          <option value="Worlds Format Decks">Worlds Format Decks</option>
+          <option value="Trinity Format Decks">Trinity Format Decks</option>
+          <option value="Speed Duel Decks">Speed Duel Decks</option>
+        </select>
         <button
           onClick={() => browseCategory(customFormat)}
           disabled={importing || !customFormat.trim()}
