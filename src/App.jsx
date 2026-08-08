@@ -933,6 +933,7 @@ function SimulatorPanel({
             className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-sm"
           >
             全削除
+             </button>
           <button
             onClick={handleSave}
             className="px-3 py-1.5 rounded bg-teal-600 hover:bg-teal-500 text-sm font-semibold"
