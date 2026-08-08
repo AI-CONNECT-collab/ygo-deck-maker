@@ -208,7 +208,8 @@ export default function App() {
   const [library, setLibrary] = useState([]); // インポート済みデッキの一覧(閲覧専用)
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [importing, setImporting] = useState(false);
-   const [importUrl, setImportUrl] = useState("");
+  const [importUrl, setImportUrl] = useState("");
+  const [customFormat, setCustomFormat] = useState("");
   const [fetchError, setFetchError] = useState(null); // YGOProDeck通信の実エラーを画面表示するため
 
   const [nameIndex, setNameIndex] = useState(null); // 起動時に public/ja-name-index.json から読み込む
@@ -820,6 +821,23 @@ export default function App() {
           マスターデュエルデッキ
         </button>
       </div>
+
+       <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs">
+        <input
+          value={customFormat}
+          onChange={(e) => setCustomFormat(e.target.value)}
+          placeholder="フォーマット名を入力(例: Tournament Meta Decks OCG)"
+          className="flex-1 border border-gray-300 rounded px-2 py-1"
+        />
+        <button
+          onClick={() => browseCategory(customFormat)}
+          disabled={importing || !customFormat.trim()}
+          className="px-3 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
+        >
+          このカテゴリを取得
+        </button>
+      </div>
+       
        
        <div className="bg-white border-b px-4 py-2 flex gap-2 text-xs">
         <input
