@@ -529,6 +529,45 @@ export default function App() {
     showToast(`${newEntries.length}/${urls.length}件のデッキを取り込みました`);
     setImporting(false);
   }
+   async function browseCategory(formatName) {
+    setImporting(true);
+    let offset = 0;
+    const limit = 50;
+    let page = 0;
+    const newEntries = [];
+    while (page < 60) {
+      let data;
+      try {
+        const res = await fetch(`${DECK_PROXY_URL}?browse=${encodeURIComponent(formatName)}&offset=${offset}&limit=${limit}`);
+        data = await res.json();
+      } catch (e) {
+        showToast(`取得中にエラーが発生しました(${e.message})`, "error");
+        break;
+      }
+      if (data.error || !data.decks || data.decks.length === 0) break;
+      for (const d of data.decks) {
+        newEntries.push({
+          key: `${Date.now()}_${Math.random().toString(36).slice(2, 8)}_${page}_${newEntries.length}`,
+          name: d.name,
+          main: groupIds(d.main || []),
+          extra: groupIds(d.extra || []),
+          side: groupIds(d.side || []),
+        });
+      }
+      showToast(`${formatName}: ${newEntries.length}件取得中...`);
+      offset += data.decks.length;
+      page++;
+    }
+    if (newEntries.length) {
+      setLibrary((prev) => {
+        const next = [...prev, ...newEntries];
+        saveLibraryToStorage(next);
+        return next;
+      });
+    }
+    showToast(`${formatName}から${newEntries.length}件のデッキを取り込みました`);
+    setImporting(false);
+  }
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
