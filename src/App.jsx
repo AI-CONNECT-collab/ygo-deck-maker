@@ -142,6 +142,37 @@ function deckCardCount(d) {
   return sum(d.main) + sum(d.extra) + sum(d.side);
 }
 
+// シャッフル(Fisher–Yates)
+function shuffleArray(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// 超幾何分布: N枚中K枚が初動、n枚引いた時の
+// 「引ける平均枚数」と「1枚以上引ける確率」を計算
+function hypergeometricStats(N, K, n) {
+  if (N <= 0 || n <= 0 || K <= 0) return { avg: 0, probAtLeastOne: 0 };
+  const nEff = Math.min(n, N);
+  let probZero = 1;
+  for (let i = 0; i < nEff; i++) {
+    const numerator = N - K - i;
+    const denominator = N - i;
+    if (numerator < 0) {
+      probZero = 0;
+      break;
+    }
+    probZero *= numerator / denominator;
+  }
+  const probAtLeastOne = 1 - probZero;
+  const avg = (nEff * K) / N;
+  return { avg, probAtLeastOne };
+}
+
+
 /* ------------------------------- storage -------------------------------- */
 /* 実際のWebサイトとして動くので、標準の localStorage を使う */
 
@@ -210,6 +241,11 @@ export default function App() {
   const [importing, setImporting] = useState(false);
   const [importUrl, setImportUrl] = useState("");
   const [customFormat, setCustomFormat] = useState("");
+  const [simOpen, setSimOpen] = useState(false);
+  const [starterIds, setStarterIds] = useState(new Set());
+  const [handSize, setHandSize] = useState(5);
+  const [shuffledPool, setShuffledPool] = useState([]);
+  const [drawnCount, setDrawnCount] = useState(0);
   const [fetchError, setFetchError] = useState(null); // YGOProDeck通信の実エラーを画面表示するため
 
   const [nameIndex, setNameIndex] = useState(null); // 起動時に public/ja-name-index.json から読み込む
@@ -231,6 +267,149 @@ export default function App() {
       }
     })();
 
+     /* --------------------------------------------------------------------------
+   SimulatorPanel
+   初手ドローシミュレーター + 初動チェック(超幾何分布)
+   -------------------------------------------------------------------------- */
+
+function SimulatorPanel({
+  deckMain,
+  cardCache,
+  nameIndex,
+  starterIds,
+  toggleStarter,
+  handSize,
+  setHandSize,
+  shuffledPool,
+  drawnCount,
+  onRedraw,
+  onDrawOne,
+  onClose,
+}) {
+  const hand = shuffledPool.slice(0, drawnCount);
+  const mainTotal = deckMain.reduce((s, c) => s + c.qty, 0);
+  const starterTotal = deckMain
+    .filter((c) => starterIds.has(c.id))
+    .reduce((s, c) => s + c.qty, 0);
+  const stats = hypergeometricStats(mainTotal, starterTotal, handSize);
+
+  return (
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl overflow-y-auto"
+        style={{ maxHeight: "90vh" }}
+      >
+        <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
+          <div className="font-bold">初動シミュレーター</div>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none px-2">
+            ×
+          </button>
+        </div>
+
+        {mainTotal === 0 ? (
+          <div className="p-6 text-sm text-gray-400 text-center">メインデッキにカードがありません</div>
+        ) : (
+          <>
+            <div className="p-4 border-b">
+              <div className="flex justify-between items-center mb-2">
+                <div className="text-sm font-semibold">初手ドロー</div>
+                <div className="flex gap-2">
+                  <button onClick={onRedraw} className="text-xs px-2 py-1 rounded border border-gray-300">
+                    再読み込み
+                  </button>
+                  <button
+                    onClick={onDrawOne}
+                    disabled={drawnCount >= shuffledPool.length}
+                    className="text-xs px-2 py-1 rounded bg-teal-600 text-white disabled:bg-gray-300"
+                  >
+                    追加ドロー
+                  </button>
+                </div>
+              </div>
+              {hand.length === 0 ? (
+                <div className="text-xs text-gray-400">「再読み込み」を押して引いてみてください</div>
+              ) : (
+                <div className="grid grid-cols-5 gap-1.5">
+                  {hand.map((id, i) => (
+                    <CardThumb
+                      key={i}
+                      card={cardCache[id]}
+                      jaName={nameIndex?.get(id)?.ja}
+                      qty={0}
+                      small
+                      onClick={() => {}}
+                    />
+                  ))}
+                </div>
+              )}
+              <div className="text-xs text-gray-400 mt-1">ドロー({hand.length}枚)</div>
+            </div>
+
+            <div className="p-4">
+              <div className="text-sm font-semibold mb-2">初動に設定するカードを選択(タップで切替)</div>
+              <div
+                className="grid grid-cols-5 gap-1.5 mb-4 overflow-y-auto"
+                style={{ maxHeight: "16rem" }}
+              >
+                {deckMain.map((c) => (
+                  <div key={c.id} className="relative">
+                    <CardThumb
+                      card={cardCache[c.id]}
+                      jaName={nameIndex?.get(c.id)?.ja}
+                      qty={c.qty}
+                      small
+                      onClick={() => toggleStarter(c.id)}
+                    />
+                    {starterIds.has(c.id) && (
+                      <div className="absolute inset-0 border-4 border-teal-500 rounded pointer-events-none" />
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t pt-3">
+                <div className="text-sm font-semibold mb-2">初動チェック結果</div>
+                <div className="flex justify-between text-sm mb-1">
+                  <span>引ける平均枚数</span>
+                  <span className="font-bold">{stats.avg.toFixed(2)} 枚</span>
+                </div>
+                <div className="flex justify-between text-sm mb-3">
+                  <span>1枚以上引ける確率</span>
+                  <span className="font-bold">{(stats.probAtLeastOne * 100).toFixed(1)} %</span>
+                </div>
+                <div className="flex items-center justify-between text-sm">
+                  <span>手札枚数</span>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => setHandSize(Math.max(1, handSize - 1))}
+                      className="w-7 h-7 rounded-full bg-gray-100"
+                    >
+                      −
+                    </button>
+                    <span className="w-6 text-center font-semibold">{handSize}</span>
+                    <button
+                      onClick={() => setHandSize(Math.min(mainTotal, handSize + 1))}
+                      className="w-7 h-7 rounded-full bg-gray-100"
+                    >
+                      +
+                    </button>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 mt-2">
+                  選択中: {deckMain.filter((c) => starterIds.has(c.id)).length}種類 / 計{starterTotal}枚
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+     
     (async () => {
       const saved = await loadDeckFromStorage();
       if (saved) {
@@ -620,6 +799,33 @@ export default function App() {
     URL.revokeObjectURL(url);
     showToast(`${library.length}件のデッキをZIPでダウンロードしました`);
   }
+   function toggleStarter(id) {
+    setStarterIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function buildMainPool() {
+    return deck.main.flatMap((c) => Array(c.qty).fill(c.id));
+  }
+
+  function redrawHand() {
+    const pool = shuffleArray(buildMainPool());
+    setShuffledPool(pool);
+    const n = Math.min(handSize, pool.length);
+    setDrawnCount(n);
+    fetchCardsByIds(pool.slice(0, n));
+  }
+
+  function drawOneMore() {
+    if (drawnCount >= shuffledPool.length) return;
+    fetchCardsByIds([shuffledPool[drawnCount]]);
+    setDrawnCount((d) => d + 1);
+  }
+
+</parameter>
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
@@ -728,12 +934,20 @@ export default function App() {
             className="px-3 py-1.5 rounded bg-gray-700 hover:bg-gray-600 text-sm"
           >
             全削除
-          </button>
           <button
             onClick={handleSave}
             className="px-3 py-1.5 rounded bg-teal-600 hover:bg-teal-500 text-sm font-semibold"
           >
             保存
+          </button>
+          <button
+            onClick={() => {
+              setSimOpen(true);
+              redrawHand();
+            }}
+            className="px-3 py-1.5 rounded bg-purple-600 hover:bg-purple-500 text-sm font-semibold"
+          >
+            初動チェック
           </button>
         </div>
       </header>
@@ -920,6 +1134,23 @@ export default function App() {
           maxAllowed={maxAllowed(selectedCardId)}
           onBulkImportDecks={bulkImportDecks}
           onClose={() => setSelectedCardId(null)}
+        />
+      )}
+
+         {simOpen && (
+        <SimulatorPanel
+          deckMain={deck.main}
+          cardCache={cardCache}
+          nameIndex={nameIndex}
+          starterIds={starterIds}
+          toggleStarter={toggleStarter}
+          handSize={handSize}
+          setHandSize={setHandSize}
+          shuffledPool={shuffledPool}
+          drawnCount={drawnCount}
+          onRedraw={redrawHand}
+          onDrawOne={drawOneMore}
+          onClose={() => setSimOpen(false)}
         />
       )}
 
