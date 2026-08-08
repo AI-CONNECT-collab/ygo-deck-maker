@@ -568,6 +568,57 @@ export default function App() {
     showToast(`${formatName}から${newEntries.length}件のデッキを取り込みました`);
     setImporting(false);
   }
+
+   function buildYdkTextForEntry(entry) {
+    const lines = ["#created by ygo-deckmaker"];
+    lines.push("#main");
+    entry.main.forEach((c) => {
+      for (let i = 0; i < c.qty; i++) lines.push(String(c.id));
+    });
+    lines.push("#extra");
+    entry.extra.forEach((c) => {
+      for (let i = 0; i < c.qty; i++) lines.push(String(c.id));
+    });
+    lines.push("!side");
+    entry.side.forEach((c) => {
+      for (let i = 0; i < c.qty; i++) lines.push(String(c.id));
+    });
+    return lines.join("\n");
+  }
+
+  async function downloadLibraryAsZip() {
+    if (!window.JSZip) {
+      showToast("ZIP機能の読み込みに失敗しました。ページを再読み込みしてください", "error");
+      return;
+    }
+    if (library.length === 0) {
+      showToast("ライブラリが空です", "error");
+      return;
+    }
+    const zip = new window.JSZip();
+    const usedNames = new Set();
+    library.forEach((entry) => {
+      const base = (entry.name || "deck").replace(/[\\/:*?"<>|]/g, "_").trim() || "deck";
+      let filename = `${base}.ydk`;
+      let i = 2;
+      while (usedNames.has(filename)) {
+        filename = `${base}_${i}.ydk`;
+        i++;
+      }
+      usedNames.add(filename);
+      zip.file(filename, buildYdkTextForEntry(entry));
+    });
+    const blob = await zip.generateAsync({ type: "blob" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "decks.zip";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast(`${library.length}件のデッキをZIPでダウンロードしました`);
+  }
    
   function removeFromLibrary(key) {
     setLibrary((prev) => {
@@ -860,6 +911,7 @@ export default function App() {
           nameIndex={nameIndex}
           fetchCardsByIds={fetchCardsByIds}
           onOpenDeck={openLibraryDeck}
+          onDownloadAll={downloadLibraryAsZip}
           onRemove={removeFromLibrary}
           onClose={() => setLibraryOpen(false)}
         />
