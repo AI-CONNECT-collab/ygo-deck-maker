@@ -1077,7 +1077,7 @@ function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDe
                 sec.arr.length > 0 && (
                   <div key={sec.label} className="mb-4">
                     <div className="text-xs font-semibold text-gray-500 mb-1">{sec.label}</div>
-                    <div className="grid grid-cols-5 gap-1.5">
+                    <div className="grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-1.5">
                       {sec.arr.map((c) => (
                         <CardThumb
                           key={c.id}
