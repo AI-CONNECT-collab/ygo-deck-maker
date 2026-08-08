@@ -1198,8 +1198,7 @@ function QtyRow({ label, value, onChange, max }) {
    閲覧専用パネル。プレビュー中に必要なカードデータだけ遅延取得する。
    -------------------------------------------------------------------------- */
 
-function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDeck, onRemove, onClose }) {
-  const [previewKey, setPreviewKey] = useState(null);
+function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDeck, onRemove, onClose, onDownloadAll }) {  const [previewKey, setPreviewKey] = useState(null);
   const previewEntry = library.find((d) => d.key === previewKey) || null;
 
   useEffect(() => {
@@ -1228,6 +1227,11 @@ function LibraryPanel({ library, cardCache, nameIndex, fetchCardsByIds, onOpenDe
             {previewEntry ? previewEntry.name : `ライブラリ (${library.length}件)`}
           </div>
           <div className="flex items-center gap-3">
+            {!previewEntry && library.length > 0 && (
+              <button onClick={onDownloadAll} className="text-xs px-2 py-1 rounded bg-teal-600 text-white">
+                全てZIPでダウンロード
+              </button>
+            )}
             {previewEntry && (
               <button onClick={() => setPreviewKey(null)} className="text-xs text-teal-700">
                 ← 一覧に戻る
