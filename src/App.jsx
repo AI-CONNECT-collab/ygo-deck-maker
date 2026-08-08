@@ -879,8 +879,7 @@ function CardThumb({ card, jaName, qty, onClick, small }) {
 
 /* --------------------------- CardDetailModal ------------------------------ */
 
-function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose }) {
-  if (!card) {
+function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks }) {  if (!card) {
     return (
       <div
         className="fixed inset-0 flex items-center justify-center z-40"
