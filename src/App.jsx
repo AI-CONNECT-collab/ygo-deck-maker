@@ -289,6 +289,16 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+   function cacheCards(cards) {
+    setCardCache((prev) => {
+      const next = { ...prev };
+      cards.forEach((c) => {
+        next[c.id] = c;
+      });
+      return next;
+    });
+  }
+   
   function showToast(msg, kind = "info") {
     setToast({ msg, kind });
     setTimeout(() => setToast(null), 2600);
@@ -992,6 +1002,8 @@ export default function App() {
           setQty={(zone, q) => setQty(zone, selectedCardId, q)}
           maxAllowed={maxAllowed(selectedCardId)}
           onBulkImportDecks={bulkImportDecks}
+          onCacheCards={cacheCards}
+          onSelectCard={(id) => setSelectedCardId(id)}
           onClose={() => setSelectedCardId(null)}
         />
       )}
@@ -1098,7 +1110,8 @@ function CardThumb({ card, jaName, qty, onClick, small }) {
 
 /* --------------------------- CardDetailModal ------------------------------ */
 
-function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks }) {  if (!card) {
+function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks, onCacheCards, onSelectCard }) {
+   if (!card) {
     return (
       <div
         className="fixed inset-0 flex items-center justify-center z-40"
@@ -1120,7 +1133,27 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
 
   const searchName = encodeURIComponent(card.name);
 
-   const [relatedDecks, setRelatedDecks] = useState(null);
+  const [relatedDecks, setRelatedDecks] = useState(null);
+  const [relatedCards, setRelatedCards] = useState(null);
+
+  useEffect(() => {
+    if (!card?.archetype) {
+      setRelatedCards(null);
+      return;
+    }
+    setRelatedCards({ loading: true, list: [] });
+    (async () => {
+      try {
+        const res = await fetch(`${YGOPRODECK_BASE}?archetype=${encodeURIComponent(card.archetype)}`);
+        const data = await res.json();
+        const list = (data.data || []).filter((c) => c.id !== card.id);
+        onCacheCards(list);
+        setRelatedCards({ loading: false, list });
+      } catch {
+        setRelatedCards({ loading: false, list: [] });
+      }
+    })();
+  }, [card?.id]);
 
   async function searchRelatedDecks() {
     if (!card.archetype) return;
@@ -1196,6 +1229,31 @@ function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClo
           <div className="text-xs text-gray-400">このカードの上限: デッキ全体で{maxAllowed}枚</div>
         </div>
 
+         {card.archetype && (
+          <div className="px-4 pb-4 border-t pt-3">
+            <div className="text-sm font-semibold mb-2">関連カード({card.archetype})</div>
+            {relatedCards?.loading && <div className="text-xs text-gray-400">検索中...</div>}
+            {relatedCards && !relatedCards.loading && relatedCards.list.length === 0 && (
+              <div className="text-xs text-gray-400">関連カードが見つかりませんでした</div>
+            )}
+            {relatedCards && relatedCards.list.length > 0 && (
+              <div className="flex gap-2 overflow-x-auto pb-1">
+                {relatedCards.list.map((c) => (
+                  <div key={c.id} className="flex-shrink-0 w-16">
+                    <CardThumb
+                      card={c}
+                      jaName={nameIndex?.get(c.id)?.ja}
+                      qty={0}
+                      small
+                      onClick={() => onSelectCard(c.id)}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+       
          <div className="px-4 pb-4 border-t pt-3">
           <div className="flex items-center justify-between mb-2">
             <div className="text-sm font-semibold">
