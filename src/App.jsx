@@ -1003,6 +1003,7 @@ export default function App() {
           maxAllowed={maxAllowed(selectedCardId)}
           onBulkImportDecks={bulkImportDecks}
           onCacheCards={cacheCards}
+          nameIndex={nameIndex}
           onSelectCard={(id) => setSelectedCardId(id)}
           onClose={() => setSelectedCardId(null)}
         />
@@ -1110,7 +1111,7 @@ function CardThumb({ card, jaName, qty, onClick, small }) {
 
 /* --------------------------- CardDetailModal ------------------------------ */
 
-function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks, onCacheCards, onSelectCard }) {
+　function CardDetailModal({ card, info, jaText, getQty, setQty, maxAllowed, onClose, onBulkImportDecks, onCacheCards, onSelectCard, nameIndex }) {
   const [relatedDecks, setRelatedDecks] = useState(null);
   const [relatedCards, setRelatedCards] = useState(null);
 
