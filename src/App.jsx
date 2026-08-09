@@ -50,6 +50,22 @@ function buildNameIndex(rows) {
   );
 }
 
+// 効果テキスト検索用インデックス(public/ja-text-index.json)を必要になった時だけ読み込み、
+// 一度読み込んだら使い回す(モジュールスコープでキャッシュ)
+let textIndexPromise = null;
+function loadTextIndex() {
+  if (!textIndexPromise) {
+    textIndexPromise = fetch(`${import.meta.env.BASE_URL}ja-text-index.json`)
+      .then((res) => res.json())
+      .then((rows) => new Map(rows))
+      .catch((e) => {
+        textIndexPromise = null; // 失敗したら次回また試せるようにする
+        throw e;
+      });
+  }
+  return textIndexPromise;
+}
+
 /* ------------------------------- helpers -------------------------------- */
 
 // yaml-yugi の日本語名/テキストには <ruby><rt>ふりがな</rt></ruby> が
@@ -231,6 +247,8 @@ export default function App() {
   const [query, setQuery] = useState("");
   const [searchResults, setSearchResults] = useState([]); // array of ids
   const [searching, setSearching] = useState(false);
+  const [searchedByText, setSearchedByText] = useState(false);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
 
   const [selectedCardId, setSelectedCardId] = useState(null);
   const [toast, setToast] = useState(null);
@@ -408,6 +426,26 @@ export default function App() {
         }
       }
 
+      // 名前でヒットしなければ、効果テキストの中身も検索する(必要になった時だけ読み込む)
+      if (ids.length === 0 && raw.length >= 2) {
+        try {
+          const map = await loadTextIndex();
+          const hits = [];
+          for (const [id, text] of map.entries()) {
+            if (text.includes(raw)) hits.push(id);
+            if (hits.length >= 40) break;
+          }
+          if (hits.length) {
+            ids = hits;
+            setSearchedByText(true);
+          }
+        } catch {
+          /* noop */
+        }
+      } else {
+        setSearchedByText(false);
+      }
+
       setSearchResults(ids);
       if (ids.length) fetchCardsByIds(ids);
       setSearching(false);
@@ -429,14 +467,11 @@ export default function App() {
     return info ? limitToMax(info.limitOcg) : 3;
   }
 
-　function setQty(zone, id, newQty) {
+  function setQty(zone, id, newQty) {
     setHistory((prev) => {
       const next = [...prev, deck];
       return next.length > 5 ? next.slice(next.length - 5) : next;
     });
-    setDeck((prev) => {
-       
-  function setQty(zone, id, newQty) {
     setDeck((prev) => {
       const zoneMax = ZONES.find((z) => z.key === zone).max;
       const currentZoneTotal = prev[zone].reduce((s, c) => s + c.qty, 0);
@@ -842,6 +877,12 @@ export default function App() {
           >
             元に戻す{history.length > 0 ? `(${history.length})` : ""}
           </button>
+          <button
+            onClick={() => setAnalysisOpen(true)}
+            className="px-3 py-1.5 rounded bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold"
+          >
+            分析
+          </button>
         </div>
       </header>
 
@@ -1007,6 +1048,11 @@ export default function App() {
         {searchResults.length > 0 && (
           <div className="flex gap-2 overflow-x-auto px-3 py-2 border-b bg-gray-50">
             {searching && <div className="text-xs text-gray-400 self-center px-2">検索中...</div>}
+            {!searching && searchedByText && (
+              <div className="text-xs text-teal-600 self-center px-2 flex-shrink-0">
+                効果テキストで検索中
+              </div>
+            )}
             {searchResults.map((id) => (
               <div key={id} className="flex-shrink-0 w-16">
                 <CardThumb
@@ -1080,6 +1126,17 @@ export default function App() {
         />
       )}
 
+      {analysisOpen && (
+        <AnalysisPanel
+          library={library}
+          cardCache={cardCache}
+          nameIndex={nameIndex}
+          fetchCardsByIds={fetchCardsByIds}
+          onSelectCard={(id) => setSelectedCardId(id)}
+          onClose={() => setAnalysisOpen(false)}
+        />
+      )}
+
       {/* ---------- テキストコピーのフォールバック ---------- */}
       {exportText && (
         <div
@@ -1121,55 +1178,6 @@ export default function App() {
   );
 }
 
-function typeColor(type) {
-  if (!type) return "bg-gray-400";
-  if (/spell/i.test(type)) return "bg-green-600";
-  if (/trap/i.test(type)) return "bg-pink-600";
-  return "bg-orange-500";
-}
-
-function CardThumb({ card, jaName, qty, onClick, small, onRightClick }) {
-  if (!card) {
-    return <div className="bg-gray-200 rounded animate-pulse" style={{ paddingBottom: "146%" }} />;
-  }
-  return (
-    <button
-      onClick={onClick}
-      onContextMenu={(e) => {
-        if (!onRightClick) return;
-        e.preventDefault();
-        onRightClick();
-      }}
-      className="relative block w-full text-left"
-    >
-      <div className={`h-1 rounded-t ${typeColor(card.type)}`} />
-      <img
-        src={card.card_images?.[0]?.image_url_small}
-        alt={jaName || card.name}
-        className="w-full border-x border-b border-gray-200 shadow-sm"
-      />
-      {qty > 0 && (
-        <span
-          className="absolute top-1 right-0.5 bg-teal-600 text-white font-bold rounded-full w-5 h-5 flex items-center justify-center shadow"
-          style={{ fontSize: "10px" }}
-        >
-          {qty}
-        </span>
-      )}
-      {!small && (
-        <>
-          <div className="text-xs text-gray-600 truncate mt-0.5">{jaName || card.name}</div>
-          {typeof card.atk === "number" && (
-            <div className="text-xs text-gray-400">
-              ATK{card.atk}/DEF{card.def ?? "-"}
-            </div>
-          )}
-        </>
-      )}
-    </button>
-  );
-}
-    
 /* ----------------------------- CardThumb --------------------------------- */
 function getMatchingIds(query, nameIndex, limit = 8) {
   const raw = query.trim();
@@ -1229,6 +1237,8 @@ function CardThumb({ card, jaName, qty, onClick, small, onRightClick }) {
       <div className={`h-1 rounded-t ${typeColor(card.type)}`} />
       <img
         src={card.card_images?.[0]?.image_url_small}
+        loading="lazy"
+        decoding="async"
         alt={jaName || card.name}
         className="w-full border-x border-b border-gray-200 shadow-sm"
       />
@@ -1242,7 +1252,10 @@ function CardThumb({ card, jaName, qty, onClick, small, onRightClick }) {
       )}
       {!small && (
         <>
-          <div className="text-xs text-gray-600 truncate mt-0.5">{jaName || card.name}</div>
+          <div className="text-xs text-gray-600 truncate mt-0.5">
+            {jaName || card.name}
+            {!jaName && <span className="text-gray-400"> (未翻訳)</span>}
+          </div>
           {typeof card.atk === "number" && (
             <div className="text-xs text-gray-400">
               ATK{card.atk}/DEF{card.def ?? "-"}
@@ -1346,6 +1359,7 @@ function CardThumb({ card, jaName, qty, onClick, small, onRightClick }) {
         <div className="p-4 flex gap-4">
           <img
             src={card.card_images?.[0]?.image_url}
+            loading="lazy"
             alt={jaName}
             className="w-32 rounded shadow flex-shrink-0"
           />
@@ -1800,6 +1814,151 @@ function SimulatorPanel({
               </div>
             </div>
           </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* --------------------------------------------------------------------------
+   AnalysisPanel
+   カード使用率ランキング + アーキタイプ別の傾向
+   (処理を軽くするため、使用率上位カードのみを対象に集計する)
+   -------------------------------------------------------------------------- */
+
+function AnalysisPanel({ library, cardCache, nameIndex, fetchCardsByIds, onSelectCard, onClose }) {
+  const [loading, setLoading] = useState(true);
+  const [ranking, setRanking] = useState([]);
+
+  useEffect(() => {
+    if (library.length === 0) {
+      setLoading(false);
+      return;
+    }
+    setLoading(true);
+    const deckCountMap = new Map();
+    const copyCountMap = new Map();
+    for (const entry of library) {
+      const allCards = [...entry.main, ...entry.extra, ...entry.side];
+      const seenInThisDeck = new Set();
+      for (const c of allCards) {
+        copyCountMap.set(c.id, (copyCountMap.get(c.id) || 0) + c.qty);
+        if (!seenInThisDeck.has(c.id)) {
+          seenInThisDeck.add(c.id);
+          deckCountMap.set(c.id, (deckCountMap.get(c.id) || 0) + 1);
+        }
+      }
+    }
+    const sorted = [...deckCountMap.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 60)
+      .map(([id, deckCount]) => ({ id, deckCount, copyCount: copyCountMap.get(id) || 0 }));
+    setRanking(sorted);
+    fetchCardsByIds(sorted.map((r) => r.id));
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [library]);
+
+  const archetypeCounts = useMemo(() => {
+    const counts = new Map();
+    for (const r of ranking) {
+      const arch = cardCache[r.id]?.archetype;
+      if (!arch) continue;
+      counts.set(arch, (counts.get(arch) || 0) + r.deckCount);
+    }
+    return [...counts.entries()].sort((a, b) => b[1] - a[1]).slice(0, 15);
+  }, [ranking, cardCache]);
+
+  const totalDecks = library.length;
+
+  return (
+    <div
+      className="fixed inset-0 flex items-end sm:items-center justify-center z-40 p-0 sm:p-4"
+      style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-2xl overflow-y-auto"
+        style={{ maxHeight: "90vh" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex justify-between items-center px-4 py-3 border-b sticky top-0 bg-white">
+          <div className="font-bold">ライブラリ分析(全{totalDecks}件のデッキから集計)</div>
+          <button onClick={onClose} className="text-gray-400 text-xl leading-none px-2">
+            ×
+          </button>
+        </div>
+
+        {totalDecks === 0 ? (
+          <div className="p-6 text-sm text-gray-400 text-center">
+            ライブラリにデッキがありません。先にデッキを取り込んでください。
+          </div>
+        ) : loading ? (
+          <div className="p-6 text-sm text-gray-400 text-center">集計中...</div>
+        ) : (
+          <div className="p-4">
+            <div className="text-xs text-gray-400 mb-3">
+              ※処理を軽くするため、使用率上位{ranking.length}件のカードを対象に集計しています(ライブラリ全件の完全な集計ではありません)
+            </div>
+
+            <div className="mb-6">
+              <div className="text-sm font-semibold mb-2">カード使用率ランキング</div>
+              <div className="space-y-1">
+                {ranking.slice(0, 30).map((r, i) => {
+                  const card = cardCache[r.id];
+                  const pct = ((r.deckCount / totalDecks) * 100).toFixed(1);
+                  return (
+                    <button
+                      key={r.id}
+                      onClick={() => onSelectCard(r.id)}
+                      className="w-full flex items-center gap-2 text-xs py-1.5 border-b hover:bg-gray-50 text-left"
+                    >
+                      <span className="w-5 text-gray-400">{i + 1}</span>
+                      {card?.card_images?.[0]?.image_url_small && (
+                        <img
+                          src={card.card_images[0].image_url_small}
+                          loading="lazy"
+                          className="w-6 h-9 object-cover rounded flex-shrink-0"
+                          alt=""
+                        />
+                      )}
+                      <span className="flex-1 truncate">
+                        {nameIndex?.get(r.id)?.ja || card?.name || `#${r.id}`}
+                      </span>
+                      <span className="text-gray-400 flex-shrink-0">
+                        {r.deckCount}デッキ({pct}%)
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div>
+              <div className="text-sm font-semibold mb-2">アーキタイプ別の傾向(上位カードからの推定)</div>
+              {archetypeCounts.length === 0 ? (
+                <div className="text-xs text-gray-400">テーマ情報を持つカードが見つかりませんでした</div>
+              ) : (
+                <div className="space-y-1.5">
+                  {archetypeCounts.map(([arch, count]) => {
+                    const max = archetypeCounts[0][1];
+                    const widthPct = Math.max(4, Math.round((count / max) * 100));
+                    return (
+                      <div key={arch} className="text-xs">
+                        <div className="flex justify-between mb-0.5">
+                          <span>{arch}</span>
+                          <span className="text-gray-400">{count}</span>
+                        </div>
+                        <div className="bg-gray-100 rounded h-2">
+                          <div className="bg-indigo-500 h-2 rounded" style={{ width: `${widthPct}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
         )}
       </div>
     </div>
