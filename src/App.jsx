@@ -1118,7 +1118,7 @@ export default function App() {
         </div>
       )}
     </div>
-  ;
+  );
 }
 
 function typeColor(type) {
